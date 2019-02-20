@@ -44,6 +44,8 @@ from openerp.report import report_sxw
 import openerp.netsvc as netsvc
 from openerp.tools.safe_eval import safe_eval as eval
 from aeroolib.plugins.opendocument import _filter
+import pytz
+from datetime import datetime
 
 from openerp.osv.orm import browse_record_list #TODO v8?
 
@@ -161,7 +163,27 @@ class ExtraFunctions(object):
             'text_markup': self._text_markup,
             'text_remove_markup': self._text_remove_markup,
             '__filter': self.__filter, # Don't use in the report template!
+            'extf_convert_datetime_utc': self._convert_datetime_utc,
         }
+
+    def _convert_datetime_utc(self, dt, output_format):
+        if dt and output_format:
+            obj_user = self.registry["res.users"]
+            user = obj_user.browse(self.cr, self.uid, [self.uid])[0]
+            try:    
+                convert_dt = datetime.strptime(dt, "%Y-%m-%d %H:%M:%S")
+            except Exception, e:
+                return e
+            if user.tz:
+                tz = pytz.timezone(user.tz)
+            else:
+                tz = pytz.utc
+            convert_utc = pytz.utc.localize(convert_dt).astimezone(tz)
+            format_utc = convert_utc.strftime(output_format)
+
+            return format_utc
+        else:
+            return "Error"
 
     def __filter(self, val):
         if isinstance(val, osv.orm.browse_null):
